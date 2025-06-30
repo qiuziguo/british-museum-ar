@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <title>British Museum AR Experience</title>
+    <!-- Three.js -->
+    <script src="https://unpkg.com/three@0.126.0/build/three.js"></script>
+    <script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #2c1810 0%, #8b4513 50%, #daa520 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #DAA520;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .model-selector {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .model-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            backdrop-filter: blur(10px);
+        }
+        
+        .model-card:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        
+        .model-card.selected {
+            border: 2px solid #DAA520;
+            background: rgba(218, 165, 32, 0.2);
+        }
+        
+        .model-card h3 {
+            margin: 0 0 10px 0;
+            color: #DAA520;
+            font-size: 18px;
+        }
+        
+        .model-card p {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+        
+        .ar-button {
+            background: linear-gradient(45deg, #8B4513, #DAA520);
+            color: white;
+            border: none;
+            padding: 18px 30px;
+            font-size: 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            margin: 20px auto;
+            display: block;
+            font-weight: bold;
+        }
+        
+        .ar-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+        }
+        
+        .ar-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .device-info {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px;
+            text-align: center;
+        }
+        
+        .instructions {
+            background: rgba(139, 69, 19, 0.2);
+            border-left: 4px solid #DAA520;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 0 15px 15px 0;
+        }
+        
+        .instructions h3 {
+            margin-top: 0;
+            color: #DAA520;
+        }
+        
+        .ios-section {
+            margin: 20px;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .usdz-link {
+            display: inline-block;
+            background: #007AFF;
+            color: white;
+            text-decoration: none;
+            padding: 12px 25px;
+            border-radius: 20px;
+            margin: 10px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .usdz-link:hover {
+            background: #0056CC;
+            transform: translateY(-2px);
+        }
+        
+        .fallback-viewer {
+            margin: 20px;
+            text-align: center;
+        }
+        
+        .model-preview {
+            width: 100%;
+            height: 300px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin: 20px 0;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏛️ British Museum AR Experience</h1>
+        <p>Explore Ancient Artifacts in Augmented Reality</p>
+    </div>
+
+    <!-- Model Selection -->
+    <div class="model-selector">
+        <h2 style="text-align: center; color: #DAA520;">Choose an Artifact:</h2>
+        
+        <div class="model-card" data-model="sphinx" onclick="selectModel('sphinx')">
+            <h3>🦁 Sandstone Sphinx Statue</h3>
+            <p>Ancient Egyptian guardian creature carved from sandstone. A symbol of royal power and divine protection.</p>
+        </div>
+        
+        <div class="model-card" data-model="vases" onclick="selectModel('vases')">
+            <h3>🏺 The David Vases</h3>
+            <p>Exquisite 14th-century Chinese porcelain vases, masterpieces of Yuan dynasty craftsmanship.</p>
+        </div>
+        
+        <div class="model-card" data-model="knucklebone" onclick="selectModel('knucklebone')">
+            <h3>🎯 The Knucklebone Player</h3>
+            <p>Classical sculpture depicting a young athlete playing with knucklebones, an ancient game.</p>
+        </div>
+    </div>
+
+    <!-- Device Detection and AR Options -->
+    <div id="device-info" class="device-info">
+        <p id="device-status">📱 Detecting your device...</p>
+    </div>
+
+    <!-- WebXR Button (Android/Desktop) -->
+    <button id="webxr-button" class="ar-button hidden" onclick="startWebXR()">
+        🚀 Start AR Experience
+    </button>
+
+    <!-- iOS USDZ Links -->
+    <div id="ios-section" class="ios-section hidden">
+        <h3>📱 iOS AR Experience</h3>
+        <p>Choose an artifact to view in AR:</p>
+        
+        <a href="https://qiuziguo.github.io/british-museum-ar/Sandstone_Sphinx_Statue.usdz" rel="ar" class="usdz-link" id="sphinx-usdz">
+            🦁 Sphinx in AR
+        </a>
+        
+        <a href="https://qiuziguo.github.io/british-museum-ar/The_David_Vases.usdz" rel="ar" class="usdz-link" id="vases-usdz">
+            🏺 David Vases in AR
+        </a>
+        
+        <a href="https://qiuziguo.github.io/british-museum-ar/The_Knucklebone_Player.usdz" rel="ar" class="usdz-link" id="knucklebone-usdz">
+            🎯 Knucklebone Player in AR
+        </a>
+    </div>
+
+    <!-- Fallback 3D Viewer -->
+    <div class="fallback-viewer">
+        <h3>🔄 3D Interactive Viewer</h3>
+        <div class="model-preview" id="model-preview">
+            Select an artifact above to preview
+        </div>
+    </div>
+
+    <div class="instructions">
+        <h3>📋 Instructions:</h3>
+        <ul>
+            <li><strong>Select an artifact</strong> from the cards above</li>
+            <li><strong>iOS users:</strong> Tap the blue AR buttons for native AR experience</li>
+            <li><strong>Android users:</strong> Use the AR Experience button for WebXR</li>
+            <li><strong>Desktop users:</strong> Enjoy the 3D interactive viewer</li>
+            <li><strong>AR Tips:</strong> Point your camera at a flat surface (table, floor)</li>
+        </ul>
+    </div>
+
+    <script>
+        let selectedModel = null;
+        let currentScene = null;
+        let arSession = null;
+
+        // Model data
+        const models = {
+            sphinx: {
+                name: "Sandstone Sphinx Statue",
+                ltf : "https://qiuziguo.github.io/british-museum-ar/sphinx/scene.gltf", // Optional if you convert USDZ to GLTF
+                usdz: "https://qiuziguo.github.io/british-museum-ar/Sandstone_Sphinx_Statue.usdz",
+                description: "Ancient Egyptian guardian"
+            },
+            vases: {
+                name: "The David Vases",
+                gltf: "https://qiuziguo.github.io/british-museum-ar/vases/scene.gltf",
+                usdz: "https://qiuziguo.github.io/british-museum-ar/The_David_Vases.usdz",
+                description: "14th-century Chinese porcelain"
+            },
+            knucklebone: {
+                name: "The Knucklebone Player",
+                gltf: "https://qiuziguo.github.io/british-museum-ar/knucklebone/scene.gltf",
+                usdz: "https://qiuziguo.github.io/british-museum-ar/The_Knucklebone_Player.usdz",
+                description: "Classical sculpture"
+            }
+        };
+
+        // Device detection
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent);
+        }
+
+        function supportsWebXR() {
+            return 'xr' in navigator;
+        }
+
+        function supportsARQuickLook() {
+            const a = document.createElement('a');
+            return a.relList && a.relList.supports && a.relList.supports('ar');
+        }
+
+        // Model selection
+        function selectModel(modelKey) {
+            selectedModel = modelKey;
+            
+            // Update UI
+            document.querySelectorAll('.model-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.querySelector(`[data-model="${modelKey}"]`).classList.add('selected');
+            
+            // Enable appropriate buttons
+            updateDeviceUI();
+            
+            // Update preview
+            updateModelPreview();
+            
+            console.log('Selected model:', models[modelKey].name);
+        }
+
+        // Update UI based on device and selection
+        function updateDeviceUI() {
+            const deviceStatus = document.getElementById('device-status');
+            const webxrButton = document.getElementById('webxr-button');
+            const iosSection = document.getElementById('ios-section');
+            
+            if (!selectedModel) {
+                deviceStatus.textContent = '👆 Please select an artifact first';
+                webxrButton.classList.add('hidden');
+                iosSection.classList.add('hidden');
+                return;
+            }
+            
+            if (isIOS()) {
+                deviceStatus.innerHTML = '✅ iOS device detected<br>Use the blue AR buttons below for native AR';
+                webxrButton.classList.add('hidden');
+                iosSection.classList.remove('hidden');
+                
+                // Update USDZ links to highlight selected model
+                document.querySelectorAll('.usdz-link').forEach(link => {
+                    link.style.opacity = '0.5';
+                });
+                
+                const selectedLink = document.getElementById(`${selectedModel}-usdz`);
+                if (selectedLink) {
+                    selectedLink.style.opacity = '1';
+                    selectedLink.style.background = '#007AFF';
+                    selectedLink.style.transform = 'scale(1.05)';
+                }
+                
+            } else if (supportsWebXR()) {
+                deviceStatus.textContent = '🤖 WebXR supported - Ready for AR!';
+                webxrButton.classList.remove('hidden');
+                webxrButton.disabled = false;
+                iosSection.classList.add('hidden');
+            } else {
+                deviceStatus.textContent = '💻 WebXR not supported - 3D viewer available';
+                webxrButton.classList.remove('hidden');
+                webxrButton.disabled = true;
+                webxrButton.textContent = '❌ WebXR Not Supported';
+                iosSection.classList.add('hidden');
+            }
+        }
+
+        // Update model preview
+        function updateModelPreview() {
+            const preview = document.getElementById('model-preview');
+            if (selectedModel) {
+                const model = models[selectedModel];
+                preview.innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="font-size: 48px; margin-bottom: 10px;">
+                            ${selectedModel === 'sphinx' ? '🦁' : selectedModel === 'vases' ? '🏺' : '🎯'}
+                        </div>
+                        <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">
+                            ${model.name}
+                        </div>
+                        <div style="font-size: 14px; opacity: 0.8;">
+                            ${model.description}
+                        </div>
+                        <div style="font-size: 12px; margin-top: 10px; opacity: 0.6;">
+                            Interactive 3D viewer coming soon
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // WebXR implementation
+        async function startWebXR() {
+            if (!selectedModel) {
+                alert('Please select an artifact first');
+                return;
+            }
+
+            if (!navigator.xr) {
+                alert('WebXR not supported on this device');
+                return;
+            }
+
+            try {
+                // Add canvas and initialize WebGL context
+                const canvas = document.createElement("canvas");
+                document.body.appendChild(canvas);
+                const gl = canvas.getContext("webgl", {xrCompatible: true});
+
+                // Create scene
+                const scene = new THREE.Scene();
+                
+                // Enhanced lighting for museum artifacts
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(5, 10, 5);
+                directionalLight.castShadow = true;
+                scene.add(directionalLight);
+                
+                // Museum-style accent lighting
+                const spotLight = new THREE.SpotLight(0xffd700, 0.5);
+                spotLight.position.set(-3, 8, 3);
+                spotLight.angle = Math.PI / 6;
+                scene.add(spotLight);
+
+                // Set up renderer
+                const renderer = new THREE.WebGLRenderer({
+                    alpha: true,
+                    preserveDrawingBuffer: true,
+                    canvas: canvas,
+                    context: gl
+                });
+                renderer.autoClear = false;
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+                // Set up camera
+                const camera = new THREE.PerspectiveCamera();
+                camera.matrixAutoUpdate = false;
+
+                // Initialize WebXR session
+                const session = await navigator.xr.requestSession("immersive-ar", {
+                    requiredFeatures: ['hit-test']
+                });
+                
+                session.updateRenderState({
+                    baseLayer: new XRWebGLLayer(session, gl)
+                });
+
+                // Create reference spaces
+                const referenceSpace = await session.requestReferenceSpace('local');
+                const viewerSpace = await session.requestReferenceSpace('viewer');
+                const hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+
+                // Load models
+                const loader = new THREE.GLTFLoader();
+                let reticle;
+                let artifactModel;
+
+                // Load targeting reticle
+                loader.load("https://immersive-web.github.io/webxr-samples/media/gltf/reticle/reticle.gltf", function(gltf) {
+                    reticle = gltf.scene;
+                    reticle.visible = false;
+                    scene.add(reticle);
+                });
+
+                // Create placeholder model (since we need GLTF conversion)
+                const createPlaceholderModel = () => {
+                    const group = new THREE.Group();
+                    const model = models[selectedModel];
+                    
+                    if (selectedModel === 'sphinx') {
+                        // Sphinx-like shape
+                        const bodyGeometry = new THREE.BoxGeometry(0.15, 0.08, 0.25);
+                        const headGeometry = new THREE.SphereGeometry(0.05, 8, 6);
+                        const material = new THREE.MeshPhongMaterial({ color: 0xDEB887 });
+                        
+                        const body = new THREE.Mesh(bodyGeometry, material);
+                        const head = new THREE.Mesh(headGeometry, material);
+                        head.position.set(0, 0.06, 0.1);
+                        
+                        group.add(body, head);
+                    } else if (selectedModel === 'vases') {
+                        // Vase-like shapes
+                        const vaseGeometry = new THREE.CylinderGeometry(0.03, 0.05, 0.15, 8);
+                        const material = new THREE.MeshPhongMaterial({ color: 0x4169E1 });
+                        
+                        const vase1 = new THREE.Mesh(vaseGeometry, material);
+                        const vase2 = new THREE.Mesh(vaseGeometry, material);
+                        vase1.position.x = -0.04;
+                        vase2.position.x = 0.04;
+                        
+                        group.add(vase1, vase2);
+                    } else {
+                        // Knucklebone player (simplified figure)
+                        const bodyGeometry = new THREE.CylinderGeometry(0.03, 0.04, 0.12, 8);
+                        const headGeometry = new THREE.SphereGeometry(0.025, 8, 6);
+                        const material = new THREE.MeshPhongMaterial({ color: 0xF5F5DC });
+                        
+                        const body = new THREE.Mesh(bodyGeometry, material);
+                        const head = new THREE.Mesh(headGeometry, material);
+                        head.position.y = 0.08;
+                        
+                        group.add(body, head);
+                    }
+                    
+                    return group;
+                };
+
+                artifactModel = createPlaceholderModel();
+
+                // Handle tap events
+                session.addEventListener("select", (event) => {
+                    if (reticle && reticle.visible && artifactModel) {
+                        const modelClone = artifactModel.clone();
+                        modelClone.position.copy(reticle.position);
+                        modelClone.rotation.y = Math.random() * Math.PI * 2;
+                        scene.add(modelClone);
+                        
+                        // Scale-up animation
+                        const originalScale = modelClone.scale.clone();
+                        modelClone.scale.set(0, 0, 0);
+                        
+                        const animate = () => {
+                            if (modelClone.scale.x < originalScale.x) {
+                                modelClone.scale.addScalar(0.02);
+                                requestAnimationFrame(animate);
+                            }
+                        };
+                        animate();
+                    }
+                });
+
+                // Main render loop
+                const onXRFrame = (time, frame) => {
+                    session.requestAnimationFrame(onXRFrame);
+                    
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
+                    
+                    const pose = frame.getViewerPose(referenceSpace);
+                    if (pose) {
+                        const view = pose.views[0];
+                        const viewport = session.renderState.baseLayer.getViewport(view);
+                        renderer.setSize(viewport.width, viewport.height);
+                        
+                        camera.matrix.fromArray(view.transform.matrix);
+                        camera.projectionMatrix.fromArray(view.projectionMatrix);
+                        camera.updateMatrixWorld(true);
+                        
+                        // Handle hit testing
+                        const hitTestResults = frame.getHitTestResults(hitTestSource);
+                        if (hitTestResults.length > 0 && reticle) {
+                            const hitPose = hitTestResults[0].getPose(referenceSpace);
+                            reticle.visible = true;
+                            reticle.position.set(
+                                hitPose.transform.position.x, 
+                                hitPose.transform.position.y, 
+                                hitPose.transform.position.z
+                            );
+                            reticle.updateMatrixWorld(true);
+                        } else if (reticle) {
+                            reticle.visible = false;
+                        }
+                        
+                        renderer.render(scene, camera);
+                    }
+                };
+                
+                session.requestAnimationFrame(onXRFrame);
+                
+            } catch (error) {
+                console.error('WebXR failed:', error);
+                alert('Failed to start AR experience: ' + error.message);
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', function() {
+            updateDeviceUI();
+            
+            // Auto-select first model for demo
+            setTimeout(() => {
+                selectModel('sphinx');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
